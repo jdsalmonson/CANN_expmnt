@@ -26,38 +26,31 @@ class ImpulseDict:
             for vpair in v:
                 if vpair[0] <= t and t < vpair[1]:
                     return k
-    
+
+# velocity drive history from protocerebral bridge:       
 vels = ImpulseDict(
+    # 2 node protocerebral bridge:
     #N = 2,
     #id = {0: ((5.0, 15.),), 1: ((19., 29.),)}
+
+    # 4 node protocerebral bridge:
     N = 4,
-    id = {1: ((5., 10.),), 0: ((10., 15.),), 2: ((19.,24.),), 3: ((24., 29.),)}
+    id = {1: ((5., 11.),), 0: ((11., 15.),), 2: ((19.,25.),), 3: ((25., 29.),)}
     )
 
+# Number of angular elements to the ellipsoid body:
+N_theta = 10 # 16
 
-tm0 = 5.0
-on_tm = 10.0  # 17.5
-mid_tm = 4.0
-end_tm = 10.0  # 4.0
+# Direct impulse
+dir_impl = ImpulseDict(
+    N = N_theta,
+    id = {8: ((1., 2.),)}
+    )
 
-tm_range = [0, tm0 + 2 * on_tm + mid_tm + end_tm]
-ang_ary = [0.0] * 10 # 16
+# simulation domain:
+ang_ary = [0.0] * N_theta
 ang_ary[3] = 1.0
-
-
-def vp(t, t0=tm0, t1=tm0 + on_tm) -> float:
-    # v+ velocity input signal
-    return heaviside(t - t0, 0.5) * heaviside(t1 - t, 0.5)
-
-
-def vm(t, t0=tm0 + on_tm + mid_tm, t1=tm0 + 2 * on_tm + mid_tm) -> float:
-    # v- velocity input signal
-    return heaviside(t - t0, 0.5) * heaviside(t1 - t, 0.5)
-
-
-def direct_impulse(t: float, t0: float, t1: float) -> float:
-    # apply direct impulse to neuron over time range [t0:t1]
-    return heaviside(t - t0, 0.5) * heaviside(t1 - t, 0.5)
+tm_range = [0, 34]
 
 
 def w_p(t: float, y: List[float]) -> List[float]:
@@ -99,9 +92,17 @@ def w_p(t: float, y: List[float]) -> List[float]:
     #impulse_term = np.zeros_like(w)
     #impulse_term[8] += direct_impulse(t, 1., 5.) #28.0, 32)  # 28.0, 30.0)
 
-    di = direct_impulse(t, 1., 2.) #5.)
-    impulse_term = -np.copy(w) * di
-    impulse_term[8] = di * (1.-w[8])
+    #di = direct_impulse(t, 1., 2.) #5.)
+    #impulse_term = -np.copy(w) * di
+    #impulse_term[8] = di * (1.-w[8])
+    
+    #di = dir_imp.get_impulse(t)
+    if (idx := dir_impl.get_impulse(t)) is not None:        
+        impulse_term = -np.copy(w)
+        impulse_term[idx] = (1.-w[idx])
+    else:
+        impulse_term = np.zeros_like(w)
+        
     #if impulse_term[8] > 0.0:
     #    print(t, impulse_term, inhibition_term, w_mx, fac)
 
@@ -169,10 +170,14 @@ scat_ring = ax2.scatter(
     vmax=1.0,
 )
 
+impulse_cols = np.zeros_like(theta)
+if (idx := dir_impl.get_impulse(sol.t[0])) is not None:        
+    impulse_cols[idx] = 1.0
+
 outer_scat_ring = ax2.scatter(
     np.radians(theta),
     1.6*r,
-    c=0.*r,
+    c=impulse_cols,
     edgecolors="b",
     s=200,
     cmap="magma",
@@ -187,13 +192,19 @@ def update(i):
         vel_cols[idx] = 1.0
     vel_row.set_array(vel_cols)
     #vel_row.set_array(np.array([vm(sol.t[i]), vp(sol.t[i])]))
-    
+
+    # Set ellipsoid body colors:
     scat_ring.set_array(sol.y[:, i])
 
+    # Set impulse ring colors:
+    impulse_cols = np.zeros_like(theta)
+    if (idx := dir_impl.get_impulse(sol.t[i])) is not None:        
+        impulse_cols[idx] = 1.0
+    outer_scat_ring.set_array(impulse_cols)
 
 # Shave off last few frames to make cycle close.
 a = animation.FuncAnimation(
-    fig, update, frames=sol.y.T.shape[0], interval=25, repeat=True
+    fig, update, frames=sol.y.T.shape[0], interval=35, repeat=True
 )
 
 make_html = False
@@ -205,7 +216,7 @@ if make_html:
     # Increase size limit for html file:
 
     matplotlib.rcParams["animation.embed_limit"] = 2**32  # 128
-    a.save("cann_cycle.html", writer=HTMLWriter(embed_frames=True))
+    a.save("cann_ellipsoid_body.html", writer=HTMLWriter(embed_frames=True))
 
     # To open file in web browser:
     # > xdg-open cann_cycle.html
@@ -216,4 +227,6 @@ else:
 
 fig2 = plt.figure(1)
 plt.plot(sol.t, sol.y.T)
+plt.xlabel("time")
+plt.ylabel("fire rate")
 plt.show()
