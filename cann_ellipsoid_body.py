@@ -44,13 +44,13 @@ N_theta = 10 # 16
 # Direct impulse
 dir_impl = ImpulseDict(
     N = N_theta,
-    id = {8: ((1., 2.),)}
+    id = {8: ((1., 2.),), 4: ((32.,34.),), 1: ((36., 38.),), 3: ((41., 43.),)}
     )
 
 # simulation domain:
 ang_ary = [0.0] * N_theta
 ang_ary[3] = 1.0
-tm_range = [0, 34]
+tm_range = [0, 48]
 
 
 def w_p(t: float, y: List[float]) -> List[float]:
@@ -86,25 +86,15 @@ def w_p(t: float, y: List[float]) -> List[float]:
     vm = v[:int(n2)].sum()
     vp = v[int(n2):].sum()
     
-    #vel_term = -(vp(t) + vm(t)) * w0 + vm(t) * w_1 + vp(t) * w1
     vel_term = -(vp + vm) * w0 + vm * w_1 + vp * w1
 
-    #impulse_term = np.zeros_like(w)
-    #impulse_term[8] += direct_impulse(t, 1., 5.) #28.0, 32)  # 28.0, 30.0)
-
-    #di = direct_impulse(t, 1., 2.) #5.)
-    #impulse_term = -np.copy(w) * di
-    #impulse_term[8] = di * (1.-w[8])
-    
-    #di = dir_imp.get_impulse(t)
+    # Direct impulse stimulus:
     if (idx := dir_impl.get_impulse(t)) is not None:        
         impulse_term = -np.copy(w)
         impulse_term[idx] = (1.-w[idx])
     else:
         impulse_term = np.zeros_like(w)
         
-    #if impulse_term[8] > 0.0:
-    #    print(t, impulse_term, inhibition_term, w_mx, fac)
 
     return 1.0 * vel_term - 20.0 * inhibition_term + impulse_term
 
@@ -221,12 +211,20 @@ if make_html:
     # To open file in web browser:
     # > xdg-open cann_cycle.html
     # --------------------------------------
+
+    fig2 = plt.figure(1)
+    plt.clf()
+    plt.plot(sol.t, sol.y.T)
+    plt.xlabel("time")
+    plt.ylabel("fire rate")
+    plt.savefig("fire_rates_per_time.png")
+
 else:
     # pass
     plt.show()
 
-fig2 = plt.figure(1)
-plt.plot(sol.t, sol.y.T)
-plt.xlabel("time")
-plt.ylabel("fire rate")
-plt.show()
+    fig2 = plt.figure(1)
+    plt.plot(sol.t, sol.y.T)
+    plt.xlabel("time")
+    plt.ylabel("fire rate")
+    plt.show()
