@@ -14,7 +14,13 @@ plt.style.use('dark_background')
 
 @dataclass
 class ImpulseDict:
-
+    """Simple class to record time spans that a range of given impulse channels will be active.
+    This class is used both for impulses in the velocity array of the protocerebral bridge and the direct impulses to directional neurons.
+    Args:
+      N (int) number of channels
+      id (dict) the impulse dict.  Each key (channel) has an array of time pairs: ((time0_on, time0_off), (time1_on, time1_off),...)
+    """
+    
     # number of channels:
     N: int = 10
     # impulse dict:
@@ -220,7 +226,6 @@ if make_html:
     plt.savefig("fire_rates_per_time.png")
 
 else:
-    # pass
     plt.show()
 
     fig2 = plt.figure(1)
