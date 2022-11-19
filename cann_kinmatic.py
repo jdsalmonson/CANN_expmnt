@@ -96,11 +96,14 @@ class CANNKinematic:
         v_inhibition_term = inhibition_mat.sum(axis=0)
 
         # Acceleration term:
-        # set wrapped value to zero to turn off periodicity:
+        # Add wrapped boundary value back to new boundary value, then set wrapped value to zero.
+        # This turns off periodicity and terminates velocity at max values:
         wv_1 = np.roll(wv, -1)
-        # wv_1[-1] = 0
+        wv_1[0] += wv_1[-1]
+        wv_1[-1] = 0
         wv1 = np.roll(wv, 1)
-        # wv1[0] = 0
+        wv1[-1] += wv1[0]
+        wv1[0] = 0
 
         # multiply acceleration state by acceleration stencil:
         a = abs(np.multiply(self.a_stencil, w[self.Nx + self.Nvel :]))
@@ -130,7 +133,9 @@ class CANNKinematic:
             acc_impulse_term = -np.copy(wa)
             acc_impulse_term[idx] = 1.0 - wa[idx]
         else:
-            acc_impulse_term = np.zeros_like(wa)
+            # acc_impulse_term = np.zeros_like(wa)
+            # If no acceleration impulse, then decay the acceleration state to zero:
+            acc_impulse_term = -np.copy(wa)
 
         w_prime = np.zeros_like(w)
 
@@ -158,7 +163,7 @@ class CANNKinematic:
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    Nacc = 4
+    Nacc = 6
     Nvel = 5
     Nx = 10
 
@@ -167,13 +172,11 @@ if __name__ == "__main__":
     acc_impl = ImpulseDict(
         N=Nacc,
         id={
-            2: ((11.0, 14.0),),
-            1: ((19.0, 25.0),),
+            3: ((8.0, 12.5),),
+            2: ((19.0, 25.0),),
         },
     )
-    vel_impl = ImpulseDict(
-        N=Nvel,  # id={0: ((3.0, 7.0),), 2: ((7.0, 10.0),), 3: ((10.0, 13.0),)}
-    )
+    vel_impl = ImpulseDict(N=Nvel, id={2: ((42.0, 45.0),)})
     dir_impl = ImpulseDict(
         N=Nx,
         id={
@@ -185,9 +188,9 @@ if __name__ == "__main__":
     )
 
     # simulation domain:
-    init_ary = [0.0] * (Nacc + Nvel + Nx)
-    init_ary[5] = 1.0
-    init_ary[Nacc + Nvel + 3] = 1.0  # initial velocity
+    init_ary = [0.0] * (Nx + Nvel + Nacc)
+    init_ary[4] = 1.0  # initial position
+    init_ary[Nx + 2] = 1.0  # initial velocity
     tm_range = [0, 48]
 
     cann = CANNKinematic(
@@ -217,7 +220,7 @@ if __name__ == "__main__":
 
     xsol = sol.y[:Nx]
     for i in range(xsol.shape[0]):
-        xsol[i, :] += i * 0.01
+        xsol[i, :] += i * 0.02
     axs[2].plot(sol.t, xsol.T)  # sol.y[:Nx].T)
     axs[2].set_ylabel("x")
 
